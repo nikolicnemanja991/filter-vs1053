@@ -1,13 +1,13 @@
 
-/* For free support for VSIDE, please visit www.vsdsp-forum.com */
-
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-// Audio effect example for VS1053/VS1063
+//Frequency Filter Using VS1053
 //
-// Flanger, chorus and delay with adjustable parameters
-// (see "effect.h" for the parameters)
-//
-// press button on board to bypass effect when program is running
+//A frequency filter that uses FFT to wipe certain frequencies from a signal. 
+//The processor will start out with the clean signal. Every time the button is
+//pressed, certain frequencies will be taken out of the signal. First it will
+//wipe higher frequencies, then middle frequencies, then lower frequencies,
+//then lower and middle, then middle and higher. After the 6 button press
+//the clean signal will start being outputted again.
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #define USE_SIMPLE_DSP_BOARD
@@ -26,14 +26,12 @@
 #include <vs1053.h>
 #include <math.h>
 
-//#include "fft.h"
-
 void InitAudioExample(u_int16 srInput,int useMicIn,u_int16 coreClock); // (see "init.c")
 
 static s_int16 __y delayBuffer[DELAY_BUF_SZ]; // delay line (buffer in Y memory)
 
 // from http://www.jjj.de/fft/fftpage.html
-// Written by Tom Roberts (1989), improved by Malcolm Slaney (1994), made portable (ix86 assembly removed) by Dimitrios P. Bouras (2006). 
+// Written by Tom Roberts (1989), improved by Malcolm Slaney (1994), made portable (ix86 assembly removed) by Dimitrios P. Bouras (2006). Edited by Nick Contini for the VS1053 simple DSP
 /* fix_fft.c - Fixed-point in-place Fast Fourier Transform  */
 /*
   All data are fixed-point short integers, in which -32768
@@ -349,8 +347,6 @@ main(void) {
 	s_int16 temp2[BLOCKSIZE];
 	u_int16 mode=0;
 	u_int16 first = 1;
-	// initialize delay line with silence
-	memsetY(delayBuffer, 0, DELAY_BUF_SZ);
 	// disable interrupts during initialization
 	Disable();
 	// basic initialization phase
@@ -409,29 +405,18 @@ main(void) {
 			} else{
 				SET_LED_1_OFF;;
 			}
-			//
-			// process BLOCKSIZE samples at one go
-			//
 
 			for(i=0;i<BLOCKSIZE;i++) {
-				//
-				// add input sample to buffer with feedback (decay)
-				// mix dry and effect and send to output (mix)
-				//
+				//line in data to buffer
 				*x = *lp;
 				lp += 2;
 				x++;
-				//
-				// advance bufptr (and wrap the cyclic buffer)
-				//
-				
 			}
-			//
-			// ouput sample pairs
-			//		
 			
 			x=temp1;
 
+			//put odd samples at the end of the a new buffer
+			//even samples stay at the beginning of the new buffer
 			for(i = 0; i<BLOCKSIZE; i++){
 				if (i & 0x01){
 					te=temp+((BLOCKSIZE+i)>>1);
@@ -445,32 +430,39 @@ main(void) {
 			}
 			te=temp;
 			
+			//forward fft
 
 			fix_fftr(te, 6, 0);
 			
+			//deciding what frequencies to take out
 			
+			//higher freq
 			if(mode==1){
 				j=0;
 				k=10;
 			}
+			//middle freq
 			else if(mode==2){
 				j=10;
 				k=20;
 			}
+			//lower freq
 			else if(mode==3){
 				j=20;
 				k=32;
 			}
+			//higher and mid freq
 			else if(mode==4){
 				j=0;
 				k=20;
 			}
+			//mid and lower freq
 			else{
 				j=10;
 				k=32;
 			}
 			
-			
+			//take out the desired frequencies	
 			if(mode!=0){
 				for(i=0; i<BLOCKSIZE/2; i++){
 					if(i>=j && i<k)
@@ -486,9 +478,11 @@ main(void) {
 			
 
 			te = temp;
-
+			
+			//reverse fft
 			scale = fix_fftr(te, 6, 1);
 
+			//reorder samples to be in sequential order in new buffer
 			y=temp2;
 			for (i=0; i<BLOCKSIZE; i++){
 				if (i & 0x01){
@@ -504,6 +498,7 @@ main(void) {
 			
 			y=temp1;
 			
+			//output to line out buffer
 			for(i=0; i<BLOCKSIZE; i++){
 				*sp=*y;
 				sp++;
@@ -512,6 +507,7 @@ main(void) {
 				y++;
 			}
 			
+			//output signal
 			AudioOutputSamples(auxBuffer, BLOCKSIZE);
 			
 		}
