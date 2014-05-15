@@ -1,3 +1,20 @@
+#define USE_SIMPLE_DSP_BOARD
+//#define USE_PROTOTYPING_BOARD
+// (define *one* of the PCB types before including board.h)
+#include "board.h"
+
+#define USE_MIC 0 // define 1 for mic-in, 0 for line-in
+
+#define BLOCKSIZE 64 // amount of samples processed in one time
+#define MY_SAMPLERATE 48000
+#define DELAY_BUF_SZ 8192
+
+#include <string.h>
+#include <stdlib.h>
+#include <vs1053.h>
+#include <math.h>
+
+void InitAudioExample(u_int16 srInput,int useMicIn,u_int16 coreClock);
 
 main(void) {
 	s_int16 auxBuffer[2*BLOCKSIZE]; // auxiliary audio buffer
@@ -69,11 +86,10 @@ main(void) {
 			//
 
 			for(i=0;i<BLOCKSIZE;i++) {
-				//
-				// add input sample to buffer with feedback (decay)
-				// mix dry and effect and send to output (mix)
-				//
+				//retrieves input
 				*te = *lp;
+
+				//executes PWM algorthm if effect is on
 				if(mode>=1){
 				if(*te>=250)
 					*te=1000*(i%2);
@@ -82,12 +98,9 @@ main(void) {
 				else
 					*te=0;
 				}
+				//advances buffers
 				lp += 2;
 				te++;
-				//
-				// advance bufptr (and wrap the cyclic buffer)
-				//
-				
 			}
 			//
 			// ouput sample pairs
