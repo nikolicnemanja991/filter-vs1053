@@ -1,0 +1,1 @@
+The project essentially takes input from the line in jack and runs the data through an FFT, 64 samples at a time. Once in the the frequency domain, the VS1053 sets certain frequencies to 0, and then send the data back to the time domain. This data is then sent out through the line out jack.
